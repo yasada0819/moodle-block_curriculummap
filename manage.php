@@ -10,11 +10,20 @@
  * Manager-facing configuration page: per-axis datasource (competency/csv) +
  * framework idnumber mapping + category idnumber substring settings.
  *
+ * Two modes, both reachable without moodle/site:config (see
+ * classes/form/manage_form.php for why this exists as a standalone page):
+ * - No instanceid (or instanceid=0): edits the SITE-WIDE DEFAULT, stored as
+ *   plugin config (get_config/set_config('block_curriculummap', ...)).
+ *   Capability checked at the system context.
+ * - instanceid=<block instance id>: edits that ONE block instance's
+ *   overrides, stored in the block's own instance config (via Moodle's
+ *   block_instance_config_save() API, same mechanism edit_form.php would
+ *   use). Capability checked at that instance's own block context, so a
+ *   Manager can be scoped to just their faculty's block if desired.
+ *
  * Also shows a read-only preview of whatever is currently stored in
- * block_curriculummap_link (CSV-sourced data), per axis, so a Manager can
- * sanity-check an upload without needing DB access. See classes/form/manage_form.php
- * for why this exists as a standalone page rather than the standard block
- * settings.php.
+ * block_curriculummap_link for the relevant scope, so a Manager can
+ * sanity-check an upload without needing DB access.
  *
  * @package    block_curriculummap
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
@@ -24,67 +33,114 @@ require(__DIR__ . '/../../config.php');
 
 use block_curriculummap\form\manage_form;
 
+global $DB, $OUTPUT, $PAGE;
+
+$instanceid = optional_param('instanceid', 0, PARAM_INT);
+
 require_login();
-$context = context_system::instance();
+
+$blockinstance = null;
+if ($instanceid) {
+    $instancerecord = $DB->get_record('block_instances', ['id' => $instanceid, 'blockname' => 'curriculummap'],
+        '*', MUST_EXIST);
+    $blockinstance = block_instance('curriculummap', $instancerecord);
+    $context = $blockinstance->context;
+} else {
+    $context = context_system::instance();
+}
 require_capability('block/curriculummap:manage', $context);
 
-$PAGE->set_url(new moodle_url('/blocks/curriculummap/manage.php'));
+$PAGE->set_url(new moodle_url('/blocks/curriculummap/manage.php', ['instanceid' => $instanceid]));
 $PAGE->set_context($context);
 $PAGE->set_pagelayout('admin');
-$PAGE->set_title(get_string('curriculummap:manage', 'block_curriculummap'));
-$PAGE->set_heading(get_string('curriculummap:manage', 'block_curriculummap'));
+$title = get_string('curriculummap:manage', 'block_curriculummap');
+$PAGE->set_title($title);
+$PAGE->set_heading($title);
 
-$returnurl = new moodle_url('/blocks/curriculummap/manage.php');
+$mode = $instanceid ? 'instance' : 'site';
+$returnurl = new moodle_url('/blocks/curriculummap/manage.php', ['instanceid' => $instanceid]);
 
-$mform = new manage_form();
+$mform = new manage_form($PAGE->url, ['mode' => $mode]);
 
-$currentdata = ['category_idnumber_offset' => 7, 'category_idnumber_length' => 2];
-foreach (manage_form::AXES as $axisid) {
-    $currentdata["{$axisid}_datasource"] = get_config('block_curriculummap', "{$axisid}_datasource") ?: 'competency';
-    $currentdata["{$axisid}frameworkidnumber"] = get_config('block_curriculummap', "{$axisid}frameworkidnumber");
-}
-$offset = get_config('block_curriculummap', 'category_idnumber_offset');
-$length = get_config('block_curriculummap', 'category_idnumber_length');
-if ($offset !== false && $offset !== '') {
-    $currentdata['category_idnumber_offset'] = $offset;
-}
-if ($length !== false && $length !== '') {
-    $currentdata['category_idnumber_length'] = $length;
+// ---- load current values ----
+if ($mode === 'site') {
+    $currentdata = ['category_idnumber_offset' => 7, 'category_idnumber_length' => 2];
+    foreach (manage_form::AXES as $axisid) {
+        $currentdata["{$axisid}_datasource"] = get_config('block_curriculummap', "{$axisid}_datasource") ?: 'competency';
+        $currentdata["{$axisid}frameworkidnumber"] = get_config('block_curriculummap', "{$axisid}frameworkidnumber");
+    }
+    $offset = get_config('block_curriculummap', 'category_idnumber_offset');
+    $length = get_config('block_curriculummap', 'category_idnumber_length');
+    if ($offset !== false && $offset !== '') {
+        $currentdata['category_idnumber_offset'] = $offset;
+    }
+    if ($length !== false && $length !== '') {
+        $currentdata['category_idnumber_length'] = $length;
+    }
+} else {
+    $iconfig = $blockinstance->config ?: new stdClass();
+    $currentdata = ['category_idnumber_offset' => 7, 'category_idnumber_length' => 2, 'category_inherit' => 1];
+    foreach (manage_form::AXES as $axisid) {
+        $currentdata["{$axisid}_datasource"] = $iconfig->{"{$axisid}_datasource"} ?? 'inherit';
+        $currentdata["{$axisid}frameworkidnumber"] = $iconfig->{"{$axisid}frameworkidnumber"} ?? '';
+    }
+    if (isset($iconfig->category_idnumber_offset)) {
+        $currentdata['category_idnumber_offset'] = $iconfig->category_idnumber_offset;
+        $currentdata['category_inherit'] = 0;
+    }
+    if (isset($iconfig->category_idnumber_length)) {
+        $currentdata['category_idnumber_length'] = $iconfig->category_idnumber_length;
+    }
 }
 $mform->set_data($currentdata);
 
+// ---- handle submit ----
 if ($mform->is_cancelled()) {
     redirect(new moodle_url('/my/'));
 } else if ($data = $mform->get_data()) {
-    foreach (manage_form::AXES as $axisid) {
-        set_config("{$axisid}_datasource", $data->{"{$axisid}_datasource"}, 'block_curriculummap');
-        set_config("{$axisid}frameworkidnumber", trim($data->{"{$axisid}frameworkidnumber"}), 'block_curriculummap');
+    if ($mode === 'site') {
+        foreach (manage_form::AXES as $axisid) {
+            set_config("{$axisid}_datasource", $data->{"{$axisid}_datasource"}, 'block_curriculummap');
+            set_config("{$axisid}frameworkidnumber", trim($data->{"{$axisid}frameworkidnumber"}), 'block_curriculummap');
+        }
+        set_config('category_idnumber_offset', (int)$data->category_idnumber_offset, 'block_curriculummap');
+        set_config('category_idnumber_length', (int)$data->category_idnumber_length, 'block_curriculummap');
+    } else {
+        $newconfig = $blockinstance->config ? clone $blockinstance->config : new stdClass();
+        foreach (manage_form::AXES as $axisid) {
+            $newconfig->{"{$axisid}_datasource"} = $data->{"{$axisid}_datasource"};
+            $newconfig->{"{$axisid}frameworkidnumber"} = trim($data->{"{$axisid}frameworkidnumber"});
+        }
+        if (!empty($data->category_inherit)) {
+            unset($newconfig->category_idnumber_offset);
+            unset($newconfig->category_idnumber_length);
+        } else {
+            $newconfig->category_idnumber_offset = (int)$data->category_idnumber_offset;
+            $newconfig->category_idnumber_length = (int)$data->category_idnumber_length;
+        }
+        $blockinstance->instance_config_save($newconfig);
     }
-    set_config('category_idnumber_offset', (int)$data->category_idnumber_offset, 'block_curriculummap');
-    set_config('category_idnumber_length', (int)$data->category_idnumber_length, 'block_curriculummap');
     redirect($returnurl, get_string('changessaved'), null, \core\output\notification::NOTIFY_SUCCESS);
 }
 
 echo $OUTPUT->header();
-echo $OUTPUT->heading(get_string('curriculummap:manage', 'block_curriculummap'));
+echo $OUTPUT->heading($title);
+if ($mode === 'instance') {
+    echo html_writer::tag('p', get_string('manageinstanceheading', 'block_curriculummap', format_string($blockinstance->title ?: $title)),
+        ['class' => 'text-muted']);
+}
 $mform->display();
 
-// Read-only preview of CSV-sourced data currently stored, per axis.
-global $DB;
+// ---- read-only preview of CSV-sourced data currently stored, for this scope ----
 echo $OUTPUT->heading(get_string('csvdatapreview', 'block_curriculummap'), 3);
-$csvimporturl = new moodle_url('/blocks/curriculummap/csv_import.php');
+$csvimporturl = new moodle_url('/blocks/curriculummap/csv_import.php', ['instanceid' => $instanceid]);
 echo html_writer::div(
     html_writer::link($csvimporturl, get_string('gotocsvimport', 'block_curriculummap'), ['class' => 'btn btn-secondary']),
     'mb-3'
 );
 
-/**
- * Builds the course/item preview table shared by the always-visible and
- * collapsed <details> sections.
- *
- * @param array $rows Rows from block_curriculummap_link.
- * @return html_table
- */
+$scopeparams = $instanceid ? ['instanceid' => $instanceid] : ['instanceid' => null];
+
 $buildpreviewtable = function(array $rows): html_table {
     $table = new html_table();
     $table->head = [
@@ -113,7 +169,8 @@ $buildpreviewtable = function(array $rows): html_table {
 };
 
 foreach (manage_form::AXES as $axisid) {
-    $count = $DB->count_records('block_curriculummap_link', ['axisid' => $axisid]);
+    $conditions = array_merge(['axisid' => $axisid], $scopeparams);
+    $count = $DB->count_records('block_curriculummap_link', $conditions);
     echo $OUTPUT->heading(get_string("axisheading_{$axisid}", 'block_curriculummap')
         . ' - ' . get_string('csvrowcount', 'block_curriculummap', $count), 4);
 
@@ -122,11 +179,8 @@ foreach (manage_form::AXES as $axisid) {
         continue;
     }
 
-    // Sanity cap - collapsing handles the "too much on screen" concern, this
-    // just guards against an unreasonably large table if something odd got
-    // imported.
     $hardcap = 500;
-    $rows = array_values($DB->get_records('block_curriculummap_link', ['axisid' => $axisid], 'courseidnumber ASC',
+    $rows = array_values($DB->get_records('block_curriculummap_link', $conditions, 'courseidnumber ASC',
         '*', 0, $hardcap));
 
     $visiblerows = array_slice($rows, 0, 10);

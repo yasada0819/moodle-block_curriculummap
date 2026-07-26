@@ -6,17 +6,20 @@
     Compact block content: shown when the instance's displaymode is
     'link' or 'modal'. The anchor always has a real href so it degrades
     to a normal page navigation if JS is disabled or 'modal' mode's
-    initModalTrigger hasn't attached yet.
+    initModalTrigger hasn't attached yet. data-instanceid lets the modal
+    trigger pass the right block instance through to get_data, since the
+    modal has no page context of its own to read it from otherwise.
 
     Context variables required for this template:
     * viewurl - string, URL to the full view page
     * ismodal - bool, true if this should open as a modal instead of navigating
+    * instanceid - int, this block instance's id
     * label - string, link/button label
 }}
 <div class="block-curriculummap-compact">
     <a href="{{viewurl}}"
        class="btn btn-outline-primary btn-sm"
-       {{#ismodal}}data-region="curriculummap-modal-trigger"{{/ismodal}}>
+       {{#ismodal}}data-region="curriculummap-modal-trigger" data-instanceid="{{instanceid}}"{{/ismodal}}>
         {{label}}
     </a>
 </div>

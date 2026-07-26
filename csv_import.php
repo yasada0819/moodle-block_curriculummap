@@ -17,6 +17,11 @@
  * using the optional course_name column (or the idnumber itself) as their
  * display name. Only a genuinely missing required field blocks a row.
  *
+ * Scoped by instanceid, same as manage.php: no instanceid (or 0) uploads
+ * into the SITE-WIDE shared data (instanceid null in the DB); a real
+ * instanceid uploads data that only that one block instance's "csv"
+ * datasource setting will read.
+ *
  * @package    block_curriculummap
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
@@ -27,35 +32,48 @@ use block_curriculummap\form\csv_upload_form;
 use block_curriculummap\form\csv_confirm_form;
 use block_curriculummap\local\csv_link_parser;
 
+global $DB;
+
+$instanceid = optional_param('instanceid', 0, PARAM_INT);
+
 require_login();
-$context = context_system::instance();
+
+if ($instanceid) {
+    $instancerecord = $DB->get_record('block_instances', ['id' => $instanceid, 'blockname' => 'curriculummap'],
+        '*', MUST_EXIST);
+    $blockinstance = block_instance('curriculummap', $instancerecord);
+    $context = $blockinstance->context;
+} else {
+    $context = context_system::instance();
+}
 require_capability('block/curriculummap:manage', $context);
 
-$PAGE->set_url(new moodle_url('/blocks/curriculummap/csv_import.php'));
+$PAGE->set_url(new moodle_url('/blocks/curriculummap/csv_import.php', ['instanceid' => $instanceid]));
 $PAGE->set_context($context);
 $PAGE->set_pagelayout('admin');
 $PAGE->set_title(get_string('csvimporttitle', 'block_curriculummap'));
 $PAGE->set_heading(get_string('csvimporttitle', 'block_curriculummap'));
 
-$manageurl = new moodle_url('/blocks/curriculummap/manage.php');
+$manageurl = new moodle_url('/blocks/curriculummap/manage.php', ['instanceid' => $instanceid]);
 $step = optional_param('step', '', PARAM_ALPHA);
+$dbinstanceid = $instanceid ?: null; // null = site-wide shared data.
 
 echo $OUTPUT->header();
 echo $OUTPUT->heading(get_string('csvimporttitle', 'block_curriculummap'));
 
 if ($step === 'confirm') {
     // ---- Step 2: confirm and import ----
-    $confirmform = new csv_confirm_form();
+    $confirmform = new csv_confirm_form($PAGE->url);
 
     if ($confirmform->is_cancelled()) {
         redirect($manageurl);
     } else if ($data = $confirmform->get_data()) {
-        global $DB;
         $axisid = $data->axisid;
+        $confirminstanceid = $data->instanceid ?: null;
         $content = base64_decode($data->csvcontentb64);
         $rows = csv_link_parser::parse($content);
 
-        $DB->delete_records('block_curriculummap_link', ['axisid' => $axisid]);
+        $DB->delete_records('block_curriculummap_link', ['axisid' => $axisid, 'instanceid' => $confirminstanceid]);
 
         $now = time();
         $inserted = 0;
@@ -65,6 +83,7 @@ if ($step === 'confirm') {
             }
             $DB->insert_record('block_curriculummap_link', (object)[
                 'axisid'         => $axisid,
+                'instanceid'     => $confirminstanceid,
                 'courseidnumber' => $row->course_idnumber,
                 'coursename'     => $row->course_name,
                 'courseid'       => $row->courseid, // null for virtual subjects.
@@ -77,18 +96,19 @@ if ($step === 'confirm') {
         }
 
         $summary = csv_link_parser::summarize($rows);
-        redirect($manageurl, get_string('csvimportdone', 'block_curriculummap', (object)[
-            'inserted' => $inserted,
-            'skipped'  => $summary['total'] - $inserted,
-        ]), null, \core\output\notification::NOTIFY_SUCCESS);
+        redirect(new moodle_url('/blocks/curriculummap/manage.php', ['instanceid' => $confirminstanceid ?: 0]),
+            get_string('csvimportdone', 'block_curriculummap', (object)[
+                'inserted' => $inserted,
+                'skipped'  => $summary['total'] - $inserted,
+            ]), null, \core\output\notification::NOTIFY_SUCCESS);
     }
 
-    // Re-show preview if confirm form was displayed via GET/back-navigation without data.
-    redirect(new moodle_url('/blocks/curriculummap/csv_import.php'));
+    // Re-show upload form if confirm form was displayed via GET/back-navigation without data.
+    redirect(new moodle_url('/blocks/curriculummap/csv_import.php', ['instanceid' => $instanceid]));
 
 } else {
     // ---- Step 1: upload, or show preview after upload ----
-    $uploadform = new csv_upload_form();
+    $uploadform = new csv_upload_form($PAGE->url);
 
     if ($data = $uploadform->get_data()) {
         $content = $uploadform->get_file_content('csvfile');
@@ -126,15 +146,18 @@ if ($step === 'confirm') {
                 ['class' => 'text-warning']);
         }
 
-        $confirmform = new csv_confirm_form();
+        $confirmform = new csv_confirm_form($PAGE->url);
         $confirmform->set_data([
             'axisid'        => $data->axisid,
+            'instanceid'    => $instanceid,
             'csvcontentb64' => base64_encode($content),
             'step'          => 'confirm',
         ]);
         $confirmform->display();
     } else {
-        echo html_writer::tag('p', get_string('csvimportintro', 'block_curriculummap'));
+        echo html_writer::tag('p', $instanceid
+            ? get_string('csvimportintroinstance', 'block_curriculummap')
+            : get_string('csvimportintro', 'block_curriculummap'));
         $uploadform->display();
     }
 }

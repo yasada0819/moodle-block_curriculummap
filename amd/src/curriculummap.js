@@ -37,12 +37,13 @@ define(['core/ajax', 'core/notification', 'core/pending', 'core/str'], function(
     /**
      * Fetch the subjects[] + axis registry intermediate data model.
      *
+     * @param {number} instanceid Block instance id (0 = site-wide default only).
      * @return {Promise}
      */
-    var fetchData = function() {
+    var fetchData = function(instanceid) {
         var request = Ajax.call([{
             methodname: 'block_curriculummap_get_data',
-            args: {}
+            args: {instanceid: instanceid || 0}
         }]);
         return request[0];
     };
@@ -896,9 +897,10 @@ define(['core/ajax', 'core/notification', 'core/pending', 'core/str'], function(
      * Initialise the full inline visualization into the given container.
      *
      * @param {string} regionId DOM id of the container to render into
+     * @param {number} instanceid Block instance id (0 = site-wide default only)
      * @return {Promise}
      */
-    var init = function(regionId) {
+    var init = function(regionId, instanceid) {
         var pending = new Pending('block_curriculummap/curriculummap:init');
         var container = document.getElementById(regionId);
         if (!container) {
@@ -929,7 +931,7 @@ define(['core/ajax', 'core/notification', 'core/pending', 'core/str'], function(
         return Str.get_strings(stringrequests).then(function(results) {
             var strings = {};
             stringkeys.forEach(function(k, i) { strings[k] = results[i]; });
-            return fetchData().then(function(data) {
+            return fetchData(instanceid).then(function(data) {
                 createApp(container, data.axes, data.subjects, strings);
                 return null;
             });
@@ -956,6 +958,7 @@ define(['core/ajax', 'core/notification', 'core/pending', 'core/str'], function(
             e.preventDefault();
 
             var pending = new Pending('block_curriculummap/curriculummap:modal');
+            var instanceid = parseInt(trigger.dataset.instanceid, 10) || 0;
             require(['core/modal', 'core/modal_events', 'core/templates'], function(Modal, ModalEvents, Templates) {
                 var modalregion = 'curriculummap-modal-body-' + Math.random().toString(36).slice(2);
                 Templates.render('block_curriculummap/full', {region: modalregion}).then(function(html) {
@@ -967,7 +970,7 @@ define(['core/ajax', 'core/notification', 'core/pending', 'core/str'], function(
                         removeOnClose: true
                     }).then(function(modal) {
                         modal.getRoot().on(ModalEvents.hidden, function() { modal.destroy(); });
-                        modal.getRoot().on(ModalEvents.shown, function() { init(modalregion); });
+                        modal.getRoot().on(ModalEvents.shown, function() { init(modalregion, instanceid); });
                         return null;
                     });
                 }).catch(function(err) {

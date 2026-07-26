@@ -31,6 +31,14 @@ class block_curriculummap_edit_form extends block_edit_form {
     protected function specific_definition($mform) {
         $mform->addElement('header', 'configheader', get_string('blocksettings', 'block'));
 
+        // Available to anyone who can otherwise edit this block instance
+        // (moodle/block:edit) - renaming is low-stakes, unlike the
+        // datasource/framework settings below, so it isn't gated by
+        // 'manage'. Useful once multiple instances sit on one page (see
+        // instance_allow_multiple()) and need to be told apart at a glance.
+        $mform->addElement('text', 'config_title', get_string('configtitle', 'block_curriculummap'));
+        $mform->setType('config_title', PARAM_TEXT);
+
         if (has_capability('block/curriculummap:manage', $this->block->context)) {
             $mform->addElement('select', 'config_displaymode',
                 get_string('displaymode', 'block_curriculummap'),

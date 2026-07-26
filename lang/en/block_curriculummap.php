@@ -29,6 +29,7 @@ $string['displaymode_link']  = 'Compact + link to a separate page (default)';
 $string['displaymode_modal'] = 'Compact + open in a popup (modal)';
 $string['displaymode_full']  = 'Full visualization inline';
 $string['displaymode_managedonly'] = 'Only a Manager or Administrator can change this setting.';
+$string['configtitle'] = 'Custom block title (optional)';
 
 // Compact / link view.
 $string['openfullview']  = 'Open curriculum map';
@@ -44,6 +45,13 @@ $string['settings_dpframeworkidnumber_desc'] = 'The idnumber of the competency f
 $string['settings_coreframeworkidnumber'] = 'Core-curriculum framework idnumber';
 $string['settings_coreframeworkidnumber_desc'] = 'The idnumber of the competency framework representing the national core curriculum.';
 $string['settings_milestoneframeworkidnumber'] = 'Milestone framework idnumber';
+
+// Per-instance override support (manage.php / edit_form.php-adjacent).
+$string['manageinstancenote'] = 'These settings apply ONLY to this one block instance. Any axis left on "Use the site-wide default" keeps using the settings configured at the site level.';
+$string['manageinstanceheading'] = 'Instance-specific settings for: {$a}';
+$string['datasource_inherit'] = 'Use the site-wide default';
+$string['category_inherit'] = 'Use the site-wide default for category extraction';
+$string['csvimportintroinstance'] = 'Upload a CSV to overwrite the stored data for one axis of THIS block instance only (dp / core / milestone). This does not affect the site-wide shared data or other instances.';
 
 // Per-axis datasource toggle (manage.php / settings.php).
 $string['axisheading_dp'] = 'DP (Diploma Policy)';

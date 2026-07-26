@@ -8,6 +8,7 @@
       <FIELDS>
         <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
         <FIELD NAME="axisid" TYPE="char" LENGTH="32" NOTNULL="true" COMMENT="e.g. dp / core / milestone"/>
+        <FIELD NAME="instanceid" TYPE="int" LENGTH="10" NOTNULL="false" COMMENT="Block instance this row belongs to; null = site-wide shared default data."/>
         <FIELD NAME="courseidnumber" TYPE="char" LENGTH="255" NOTNULL="true" DEFAULT="" COMMENT="Canonical subject identity for CSV-sourced data; does not require a matching Moodle course to exist."/>
         <FIELD NAME="coursename" TYPE="char" LENGTH="255" NOTNULL="false" COMMENT="Optional CSV-provided display name, used only when courseid is null (no matching course found)."/>
         <FIELD NAME="courseid" TYPE="int" LENGTH="10" NOTNULL="false" COMMENT="Resolved Moodle course id if courseidnumber matched an existing course; null otherwise."/>
@@ -23,6 +24,7 @@
         <INDEX NAME="axisid" UNIQUE="false" FIELDS="axisid"/>
         <INDEX NAME="courseid" UNIQUE="false" FIELDS="courseid"/>
         <INDEX NAME="courseidnumber" UNIQUE="false" FIELDS="courseidnumber"/>
+        <INDEX NAME="axisid_instanceid" UNIQUE="false" FIELDS="axisid, instanceid"/>
       </INDEXES>
     </TABLE>
   </TABLES>

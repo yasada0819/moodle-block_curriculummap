@@ -31,5 +31,5 @@ $PAGE->set_title(get_string('viewpagetitle', 'block_curriculummap'));
 $PAGE->set_heading(get_string('viewpagetitle', 'block_curriculummap'));
 
 echo $OUTPUT->header();
-echo $PAGE->get_renderer('block_curriculummap')->render_full($context);
+echo $PAGE->get_renderer('block_curriculummap')->render_full($context, $instanceid);
 echo $OUTPUT->footer();

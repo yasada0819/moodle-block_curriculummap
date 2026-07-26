@@ -25,7 +25,7 @@
 defined('MOODLE_INTERNAL') || die();
 
 $plugin->component = 'block_curriculummap';
-$plugin->version   = 2026072611;          // YYYYMMDDXX - bumped: fixed sticky-header CSS - column/row label offsets (top: 26px / left: 44px) assumed a major-group band row/column always exists; now conditional (cmviz-no-band modifier) so axis combos without grouping (e.g. category x dp_major) don't render with a phantom offset seam.
+$plugin->version   = 2026072614;          // YYYYMMDDXX - bumped: allow multiple instances of this block on one page (each already has its own instanceid-scoped settings/CSV data and its own DOM container, so they don't collide), plus a per-instance custom title (config_title) so multiple instances on one page can be told apart.
 $plugin->requires  = 2024100700;          // Moodle 4.5 LTS baseline. Bump if targeting 5.x only.
-$plugin->release   = '0.4.1';
+$plugin->release   = '0.6.0';
 $plugin->maturity  = MATURITY_ALPHA;      // Core visualization now works end-to-end; still alpha pending broader testing.

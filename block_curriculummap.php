@@ -32,6 +32,23 @@ class block_curriculummap extends block_base {
     }
 
     /**
+     * Applies the per-instance custom title (edit_form.php's config_title),
+     * if the person editing this instance set one - otherwise falls back to
+     * the plugin name. Matters most once instance_allow_multiple() lets
+     * several of these sit on one page (e.g. a Medicine map and a Nursing
+     * map side by side) and need to be told apart at a glance.
+     *
+     * @return void
+     */
+    public function specialization() {
+        if (!empty($this->config->title)) {
+            $this->title = format_string($this->config->title);
+        } else {
+            $this->title = get_string('pluginname', 'block_curriculummap');
+        }
+    }
+
+    /**
      * Global settings.php exists (for actual site admins). Managers reach
      * the equivalent framework-mapping form via manage.php instead - see
      * classes/form/manage_form.php for why.
@@ -54,10 +71,16 @@ class block_curriculummap extends block_base {
     }
 
     /**
+     * Multiple instances on one page are supported: each gets its own
+     * context (and therefore its own DOM container id and its own
+     * instanceid-scoped settings/CSV data - see get_data.php), so they
+     * don't collide. Give each a distinct config_title (edit_form.php) to
+     * tell them apart.
+     *
      * @return bool
      */
     public function instance_allow_multiple() {
-        return false;
+        return true;
     }
 
     /**
@@ -87,13 +110,18 @@ class block_curriculummap extends block_base {
         $viewurl = new moodle_url('/blocks/curriculummap/view.php', ['instanceid' => $this->instance->id]);
 
         if ($mode === 'full') {
-            $this->content->text = $this->page->get_renderer('block_curriculummap')->render_full($this->context);
+            $this->content->text = $this->page->get_renderer('block_curriculummap')
+                ->render_full($this->context, $this->instance->id);
         } else {
-            $this->content->text = $this->page->get_renderer('block_curriculummap')->render_compact($viewurl, $mode);
+            $this->content->text = $this->page->get_renderer('block_curriculummap')
+                ->render_compact($viewurl, $mode, $this->instance->id);
         }
 
-        if (has_capability('block/curriculummap:manage', context_system::instance())) {
-            $manageurl = new moodle_url('/blocks/curriculummap/manage.php');
+        // Checked at this block's own context (not system context) so a
+        // Manager scoped to just this one instance (see manage.php) also
+        // sees the link, not only a site-wide Manager.
+        if (has_capability('block/curriculummap:manage', $this->context)) {
+            $manageurl = new moodle_url('/blocks/curriculummap/manage.php', ['instanceid' => $this->instance->id]);
             $this->content->footer = \html_writer::link(
                 $manageurl,
                 get_string('settings_frameworksheading', 'block_curriculummap'),

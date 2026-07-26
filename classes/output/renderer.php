@@ -31,13 +31,17 @@ class renderer extends \plugin_renderer_base {
      *
      * @param moodle_url $viewurl
      * @param string $mode 'link' | 'modal'
+     * @param int $instanceid Needed so the modal (which has no page context
+     *                        of its own) still asks get_data for the right
+     *                        instance's overrides.
      * @return string
      */
-    public function render_compact(moodle_url $viewurl, string $mode): string {
+    public function render_compact(moodle_url $viewurl, string $mode, int $instanceid): string {
         $data = [
-            'viewurl' => $viewurl->out(false),
-            'ismodal' => ($mode === 'modal'),
-            'label'   => get_string('openfullview', 'block_curriculummap'),
+            'viewurl'    => $viewurl->out(false),
+            'ismodal'    => ($mode === 'modal'),
+            'instanceid' => $instanceid,
+            'label'      => get_string('openfullview', 'block_curriculummap'),
         ];
         $html = $this->render_from_template('block_curriculummap/compact', $data);
 
@@ -52,20 +56,21 @@ class renderer extends \plugin_renderer_base {
      * Full inline visualization. Renders the container markup; the AMD
      * module fetches data via block_curriculummap_get_data and populates it.
      *
-     * TODO: this currently renders the container + a "not yet implemented"
-     * placeholder. The full cross-tab engine from the HTML prototype
-     * (axis registry, matrix, sidebar) still needs porting into
-     * amd/src/curriculummap.js - see chat notes, this is the next increment.
-     *
      * @param context $context
+     * @param int $instanceid Block instance id, so its own datasource/framework
+     *                        overrides (if any) are used instead of the
+     *                        site-wide default. 0 for the case with no
+     *                        specific instance (shouldn't normally happen for
+     *                        a block, but view.php can be reached without one).
      * @return string
      */
-    public function render_full(context $context): string {
+    public function render_full(context $context, int $instanceid = 0): string {
         $html = $this->render_from_template('block_curriculummap/full', [
             'region' => 'curriculummap-root-' . $context->id,
         ]);
         $this->page->requires->js_call_amd('block_curriculummap/curriculummap', 'init', [
             'curriculummap-root-' . $context->id,
+            $instanceid,
         ]);
         return $html;
     }

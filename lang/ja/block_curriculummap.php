@@ -28,6 +28,7 @@ $string['displaymode_link']  = 'コンパクト表示+別ページへのリン�
 $string['displaymode_modal'] = 'コンパクト表示+ポップアップ(モーダル)で開く';
 $string['displaymode_full']  = 'フル可視化をそのまま表示';
 $string['displaymode_managedonly'] = 'この設定はマネージャまたは管理者のみ変更できます。';
+$string['configtitle'] = 'ブロックタイトル(任意・カスタマイズ用)';
 
 $string['openfullview']  = 'カリキュラムマップを開く';
 $string['viewpagetitle'] = 'カリキュラムマップ';
@@ -41,6 +42,13 @@ $string['settings_dpframeworkidnumber_desc'] = 'ディプロマ・ポリシー(D
 $string['settings_coreframeworkidnumber'] = 'コアカリフレームワークのidnumber';
 $string['settings_coreframeworkidnumber_desc'] = '医学教育モデル・コア・カリキュラムを表すコンピテンシーフレームワークのidnumber。';
 $string['settings_milestoneframeworkidnumber'] = 'マイルストーンフレームワークのidnumber';
+
+// ブロックインスタンス単位の上書き対応(manage.php)。
+$string['manageinstancenote'] = 'ここでの設定は、このブロックインスタンス1つだけに適用されます。「サイト共通の設定を使う」のままの軸は、サイト全体の設定がそのまま使われます。';
+$string['manageinstanceheading'] = '「{$a}」専用の設定';
+$string['datasource_inherit'] = 'サイト共通の設定を使う';
+$string['category_inherit'] = '科目カテゴリ抽出もサイト共通の設定を使う';
+$string['csvimportintroinstance'] = 'CSVをアップロードすると、このブロックインスタンス専用の軸データ(dp/core/milestoneのいずれか)を丸ごと置き換えます。サイト共通データや他のブロックインスタンスには影響しません。';
 
 // 軸ごとのデータソース切替(manage.php / settings.php)。
 $string['axisheading_dp'] = 'DP(ディプロマ・ポリシー)';

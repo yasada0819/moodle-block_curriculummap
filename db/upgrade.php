@@ -90,5 +90,24 @@ function xmldb_block_curriculummap_upgrade($oldversion) {
         upgrade_block_savepoint(true, 2026072608, 'curriculummap');
     }
 
+    if ($oldversion < 2026072612) {
+        // Per-instance override support: a block instance can now use its own
+        // datasource/framework/category settings instead of the site-wide
+        // default. CSV data is scoped the same way - instanceid null means
+        // "site-wide shared data" (what every existing row already is), a
+        // real instanceid means "only this block instance's CSV data".
+        $table = new xmldb_table('block_curriculummap_link');
+        $field = new xmldb_field('instanceid', XMLDB_TYPE_INTEGER, '10', null, null, null, null, 'axisid');
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+        $index = new xmldb_index('axisid_instanceid', XMLDB_INDEX_NOTUNIQUE, ['axisid', 'instanceid']);
+        if (!$dbman->index_exists($table, $index)) {
+            $dbman->add_index($table, $index);
+        }
+
+        upgrade_block_savepoint(true, 2026072612, 'curriculummap');
+    }
+
     return true;
 }

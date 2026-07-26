@@ -27,25 +27,28 @@ use core_competency\competency_framework;
  *
  * Design decisions from chat (see conversation notes, not just this file):
  * - "category" comes straight from a configurable substring of
- *   course.idnumber (e.g. "2026_M_L3XXXX" chars 8-9 -> "L3"). No framework,
- *   no CSV, no custom field - just string slicing, per-institution offset/length
- *   configured by a Manager in manage.php.
+ *   course.idnumber. No framework, no CSV, no custom field - just string
+ *   slicing, per-institution offset/length configured in manage.php.
  * - "milestone" is its own axis, parallel to dp/core (not nested inside the
- *   DP hierarchy) - see chat notes on why nesting would model a case that
- *   can't occur under the current rule (one milestone value per subject).
- * - Each of dp/core/milestone independently supports TWO datasources,
- *   toggled per-axis by a Manager in manage.php: 'competency' (live from
- *   core_competency) or 'csv' (block_curriculummap_link, populated by
- *   csv_import.php).
+ *   DP hierarchy).
+ * - Each of dp/core/milestone independently supports TWO datasources:
+ *   'competency' (live from core_competency) or 'csv'
+ *   (block_curriculummap_link, via csv_import.php).
+ * - Every one of the above can be set SITE-WIDE (the default every block
+ *   instance uses unless it overrides) or PER BLOCK INSTANCE (chat notes:
+ *   "医学部マップ" and "看護学部マップ" pointing at different DP
+ *   frameworks while sharing the site-wide milestone setting). An instance
+ *   override is only "on" for an axis when its own {axis}_datasource config
+ *   key is explicitly 'competency' or 'csv' - the value 'inherit' (or the
+ *   key being absent, e.g. for instances created before this feature)
+ *   falls through to the site-wide default. CSV data itself is scoped the
+ *   same way via block_curriculummap_link.instanceid (null = site-wide
+ *   shared rows, which is what every pre-existing row already is).
  * - CSV-sourced subjects do NOT need a matching Moodle course to exist.
  *   Subject identity is the course_idnumber string itself; if it happens to
  *   match a real course, that course's real name/id are used, otherwise the
  *   CSV's optional course_name (or the idnumber itself) is used as a
- *   "virtual" subject. This is why subjects are keyed by a canonical string
- *   key here rather than Moodle's numeric courseid - it lets a
- *   competency-sourced axis and a CSV-sourced axis merge into the same
- *   subject when they share an idnumber, while still letting CSV describe
- *   subjects Moodle doesn't know about yet.
+ *   "virtual" subject.
  *
  * @package    block_curriculummap
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
@@ -59,14 +62,31 @@ class get_data extends external_api {
      * @return external_function_parameters
      */
     public static function execute_parameters(): external_function_parameters {
-        return new external_function_parameters([]);
+        return new external_function_parameters([
+            'instanceid' => new external_value(PARAM_INT,
+                'Block instance id, so its own overrides (if any) are used; 0 = no specific instance (site-wide defaults only).',
+                VALUE_DEFAULT, 0),
+        ]);
     }
 
     /**
+     * @param int $instanceid
      * @return array
      */
-    public static function execute(): array {
-        $context = context_system::instance();
+    public static function execute(int $instanceid = 0): array {
+        global $DB;
+
+        $instanceconfig = null;
+        if ($instanceid) {
+            $instancerecord = $DB->get_record('block_instances',
+                ['id' => $instanceid, 'blockname' => 'curriculummap'], '*', MUST_EXIST);
+            $blockinstance = block_instance('curriculummap', $instancerecord);
+            $context = $blockinstance->context;
+            $instanceconfig = $blockinstance->config ?: new \stdClass();
+        } else {
+            $context = context_system::instance();
+        }
+
         self::validate_context($context);
         require_capability('block/curriculummap:view', $context);
 
@@ -74,7 +94,7 @@ class get_data extends external_api {
         $subjectsbykey = [];
 
         foreach (self::AXES as $axisid) {
-            $axisdata = self::get_axis_data($axisid);
+            $axisdata = self::get_axis_data($axisid, $instanceid, $instanceconfig);
             if ($axisdata === null) {
                 continue; // Not configured (neither framework nor CSV data present) - skip gracefully.
             }
@@ -87,7 +107,7 @@ class get_data extends external_api {
 
             foreach ($axisdata['courselinks'] as $link) {
                 $key = self::get_or_create_subject($subjectsbykey, $link['courseid'], $link['courseidnumber'],
-                    $link['coursename'] ?? null);
+                    $link['coursename'] ?? null, $instanceid, $instanceconfig);
                 $subjectsbykey[$key]['links'][] = [
                     'axisid'    => $axisid,
                     'idnumbers' => $link['itemidnumbers'],
@@ -111,19 +131,22 @@ class get_data extends external_api {
      * @param int|null $courseid Real Moodle course id, or null if unmatched (CSV-only/virtual).
      * @param string $courseidnumber Canonical identity when non-empty.
      * @param string|null $fallbackname Used for virtual subjects when no course_name was given either.
+     * @param int $instanceid
+     * @param \stdClass|null $instanceconfig
      * @return string The key used in $subjectsbykey for this subject.
      */
-    private static function get_or_create_subject(array &$subjectsbykey, ?int $courseid,
-            string $courseidnumber, ?string $fallbackname): string {
+    private static function get_or_create_subject(array &$subjectsbykey, ?int $courseid, string $courseidnumber,
+            ?string $fallbackname, int $instanceid, ?\stdClass $instanceconfig): string {
 
         $key = $courseidnumber !== '' ? $courseidnumber : ('C' . $courseid);
 
         if (!isset($subjectsbykey[$key])) {
-            $subjectsbykey[$key] = self::build_subject($key, $courseid, $courseidnumber, $fallbackname);
+            $subjectsbykey[$key] = self::build_subject($key, $courseid, $courseidnumber, $fallbackname,
+                $instanceid, $instanceconfig);
         } else if ($courseid !== null && $subjectsbykey[$key]['courseid'] === null) {
             // A later axis resolved a real course for a subject we'd only seen virtually so far - upgrade it.
             $subjectsbykey[$key] = array_merge(
-                self::build_subject($key, $courseid, $courseidnumber, $fallbackname),
+                self::build_subject($key, $courseid, $courseidnumber, $fallbackname, $instanceid, $instanceconfig),
                 ['links' => $subjectsbykey[$key]['links']]
             );
         }
@@ -136,16 +159,19 @@ class get_data extends external_api {
      * @param int|null $courseid
      * @param string $courseidnumber
      * @param string|null $fallbackname
+     * @param int $instanceid
+     * @param \stdClass|null $instanceconfig
      * @return array
      */
-    private static function build_subject(string $key, ?int $courseid, string $courseidnumber, ?string $fallbackname): array {
+    private static function build_subject(string $key, ?int $courseid, string $courseidnumber, ?string $fallbackname,
+            int $instanceid, ?\stdClass $instanceconfig): array {
         if ($courseid !== null) {
             $course = get_course($courseid);
             return [
                 'id'       => 'S_' . $key,
                 'courseid' => $courseid,
                 'name'     => format_string($course->fullname),
-                'category' => self::extract_category($course->idnumber),
+                'category' => self::extract_category($course->idnumber, $instanceid, $instanceconfig),
                 'links'    => [],
             ];
         }
@@ -154,25 +180,33 @@ class get_data extends external_api {
             'id'       => 'S_' . $key,
             'courseid' => null,
             'name'     => $name,
-            'category' => self::extract_category($courseidnumber),
+            'category' => self::extract_category($courseidnumber, $instanceid, $instanceconfig),
             'links'    => [],
         ];
     }
 
     /**
      * Category comes from a configurable substring of course.idnumber
-     * (chat notes: e.g. "2026_M_L3XXXX", offset 7, length 2 -> "L3"). Works
-     * the same whether idnumber comes from a real course or a CSV-only
-     * virtual subject - it's pure string slicing either way.
-     * Defaults (offset 7, length 2) match that example but are meant to be
-     * reconfigured per institution in manage.php.
+     * (e.g. "2026_M_L3XXXX", offset 7, length 2 -> "L3"). Works the same
+     * whether idnumber comes from a real course or a CSV-only virtual
+     * subject - it's pure string slicing either way. An instance can
+     * override offset/length; if it hasn't, the site-wide default is used.
      *
      * @param string $idnumber
+     * @param int $instanceid
+     * @param \stdClass|null $instanceconfig
      * @return string|null null if idnumber is too short or unset.
      */
-    private static function extract_category(string $idnumber): ?string {
-        $offset = (int)(get_config('block_curriculummap', 'category_idnumber_offset') ?: 7);
-        $length = (int)(get_config('block_curriculummap', 'category_idnumber_length') ?: 2);
+    private static function extract_category(string $idnumber, int $instanceid, ?\stdClass $instanceconfig): ?string {
+        $offset = null;
+        $length = null;
+        if ($instanceid && $instanceconfig !== null && isset($instanceconfig->category_idnumber_offset)) {
+            $offset = (int)$instanceconfig->category_idnumber_offset;
+            $length = (int)($instanceconfig->category_idnumber_length ?? 2);
+        } else {
+            $offset = (int)(get_config('block_curriculummap', 'category_idnumber_offset') ?: 7);
+            $length = (int)(get_config('block_curriculummap', 'category_idnumber_length') ?: 2);
+        }
         if ($idnumber === '' || strlen($idnumber) < $offset + $length) {
             return null;
         }
@@ -180,29 +214,44 @@ class get_data extends external_api {
     }
 
     /**
-     * Resolves one axis's data from whichever datasource a Manager has
-     * configured for it (default 'competency').
+     * Resolves one axis's data, using a block instance's own override for
+     * datasource/framework if it has explicitly set one (anything other
+     * than 'inherit'/unset), else the site-wide default.
      *
      * @param string $axisid 'dp' | 'core' | 'milestone'
+     * @param int $instanceid
+     * @param \stdClass|null $instanceconfig
      * @return array{label:string, items:array, courselinks:array}|null
      */
-    private static function get_axis_data(string $axisid): ?array {
-        $datasource = get_config('block_curriculummap', "{$axisid}_datasource");
-        $datasource = $datasource ?: 'competency';
+    private static function get_axis_data(string $axisid, int $instanceid, ?\stdClass $instanceconfig): ?array {
+        $instancedatasource = ($instanceid && $instanceconfig !== null)
+            ? ($instanceconfig->{"{$axisid}_datasource"} ?? 'inherit')
+            : 'inherit';
 
-        if ($datasource === 'csv') {
-            return self::get_axis_data_from_csv($axisid);
+        if ($instancedatasource === 'competency') {
+            $idnumber = $instanceconfig->{"{$axisid}frameworkidnumber"} ?? '';
+            return self::get_axis_data_from_competency($axisid, $idnumber);
         }
-        return self::get_axis_data_from_competency($axisid);
+        if ($instancedatasource === 'csv') {
+            return self::get_axis_data_from_csv($axisid, $instanceid);
+        }
+
+        // Inherit: fall through to the site-wide default.
+        $sitedatasource = get_config('block_curriculummap', "{$axisid}_datasource") ?: 'competency';
+        if ($sitedatasource === 'csv') {
+            return self::get_axis_data_from_csv($axisid, 0);
+        }
+        $idnumber = get_config('block_curriculummap', "{$axisid}frameworkidnumber") ?: '';
+        return self::get_axis_data_from_competency($axisid, $idnumber);
     }
 
     /**
      * @param string $axisid
+     * @param string $idnumber Framework idnumber to use (already resolved: instance override or site default).
      * @return array{label:string, items:array, courselinks:array}|null
      */
-    private static function get_axis_data_from_competency(string $axisid): ?array {
-        $idnumber = get_config('block_curriculummap', "{$axisid}frameworkidnumber");
-        if (empty($idnumber)) {
+    private static function get_axis_data_from_competency(string $axisid, string $idnumber): ?array {
+        if ($idnumber === '') {
             return null;
         }
         $framework = competency_framework::get_record(['idnumber' => $idnumber]);
@@ -218,11 +267,14 @@ class get_data extends external_api {
 
     /**
      * @param string $axisid
+     * @param int $instanceid Which CSV scope to read: 0 = site-wide shared rows (instanceid IS NULL),
+     *                        otherwise only that instance's own rows.
      * @return array{label:string, items:array, courselinks:array}|null
      */
-    private static function get_axis_data_from_csv(string $axisid): ?array {
+    private static function get_axis_data_from_csv(string $axisid, int $instanceid): ?array {
         global $DB;
-        $rows = $DB->get_records('block_curriculummap_link', ['axisid' => $axisid]);
+        $conditions = ['axisid' => $axisid, 'instanceid' => $instanceid ?: null];
+        $rows = $DB->get_records('block_curriculummap_link', $conditions);
         if (empty($rows)) {
             return null;
         }

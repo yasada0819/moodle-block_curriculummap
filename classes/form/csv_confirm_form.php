@@ -32,6 +32,9 @@ class csv_confirm_form extends \moodleform {
         $mform->addElement('hidden', 'axisid');
         $mform->setType('axisid', PARAM_ALPHA);
 
+        $mform->addElement('hidden', 'instanceid');
+        $mform->setType('instanceid', PARAM_INT);
+
         $mform->addElement('hidden', 'csvcontentb64');
         $mform->setType('csvcontentb64', PARAM_RAW);
 
