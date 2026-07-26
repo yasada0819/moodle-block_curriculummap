@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<XMLDB PATH="blocks/curriculummap/db" VERSION="20260726" COMMENT="XMLDB for block_curriculummap"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:noNamespaceSchemaLocation="../../../lib/xmldb/xmldb.xsd"
+>
+  <TABLES>
+    <TABLE NAME="block_curriculummap_link" COMMENT="CSV-sourced course-to-item links, used when an axis's datasource setting is 'csv' instead of 'competency'. Overwritten wholesale per axis on each new CSV upload (see classes/form/csv_confirm_form.php).">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="axisid" TYPE="char" LENGTH="32" NOTNULL="true" COMMENT="e.g. dp / core / milestone"/>
+        <FIELD NAME="courseidnumber" TYPE="char" LENGTH="255" NOTNULL="true" DEFAULT="" COMMENT="Canonical subject identity for CSV-sourced data; does not require a matching Moodle course to exist."/>
+        <FIELD NAME="coursename" TYPE="char" LENGTH="255" NOTNULL="false" COMMENT="Optional CSV-provided display name, used only when courseid is null (no matching course found)."/>
+        <FIELD NAME="courseid" TYPE="int" LENGTH="10" NOTNULL="false" COMMENT="Resolved Moodle course id if courseidnumber matched an existing course; null otherwise."/>
+        <FIELD NAME="itemidnumber" TYPE="char" LENGTH="255" NOTNULL="true"/>
+        <FIELD NAME="itemlabel" TYPE="char" LENGTH="255" NOTNULL="false"/>
+        <FIELD NAME="parentlabel" TYPE="char" LENGTH="255" NOTNULL="false" COMMENT="Descriptive grouping label only (e.g. major category); not a foreign key."/>
+        <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="axisid" UNIQUE="false" FIELDS="axisid"/>
+        <INDEX NAME="courseid" UNIQUE="false" FIELDS="courseid"/>
+        <INDEX NAME="courseidnumber" UNIQUE="false" FIELDS="courseidnumber"/>
+      </INDEXES>
+    </TABLE>
+  </TABLES>
+</XMLDB>

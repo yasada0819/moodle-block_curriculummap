@@ -1,0 +1,82 @@
+{{!
+    This file is part of Moodle - http://moodle.org/
+
+    @template block_curriculummap/full
+
+    Static scaffold for the full cross-tab visualization. Everything here
+    is queried by amd/src/curriculummap.js via data-role attributes scoped
+    to this container - never by id - so multiple block instances can sit
+    on the same page without colliding. Do not put mustache tags inside
+    comment blocks in this file: Mustache comments don't support nesting,
+    so a tag in here would close the comment early and leak text.
+
+    Context variables required for this template:
+    * region - string, unique DOM id for this block instance's root element
+}}
+<div id="{{region}}" class="block_curriculummap-viz" data-region="curriculummap-root">
+
+  <div class="cmviz-controls">
+    <div class="cmviz-field">
+      <label>{{#str}}viz_rowaxis, block_curriculummap{{/str}}</label>
+      <select data-role="rowAxis"></select>
+    </div>
+    <div class="cmviz-field">
+      <label>{{#str}}viz_sortorder, block_curriculummap{{/str}}</label>
+      <div class="cmviz-segtoggle" data-role="rowSortToggle">
+        <button data-dir="asc" class="active">{{#str}}viz_asc, block_curriculummap{{/str}}</button>
+        <button data-dir="desc">{{#str}}viz_desc, block_curriculummap{{/str}}</button>
+      </div>
+    </div>
+    <div class="cmviz-field">
+      <label>&nbsp;</label>
+      <button class="cmviz-minibtn" data-role="swapAxes">{{#str}}viz_swapaxes, block_curriculummap{{/str}}</button>
+    </div>
+    <div class="cmviz-field">
+      <label>{{#str}}viz_colaxis, block_curriculummap{{/str}}</label>
+      <select data-role="colAxis"></select>
+    </div>
+    <div class="cmviz-field">
+      <label>{{#str}}viz_sortorder, block_curriculummap{{/str}}</label>
+      <div class="cmviz-segtoggle" data-role="colSortToggle">
+        <button data-dir="asc" class="active">{{#str}}viz_asc, block_curriculummap{{/str}}</button>
+        <button data-dir="desc">{{#str}}viz_desc, block_curriculummap{{/str}}</button>
+      </div>
+    </div>
+    <div class="cmviz-field">
+      <label>{{#str}}viz_mode, block_curriculummap{{/str}}</label>
+      <div class="cmviz-segtoggle" data-role="modeToggle">
+        <button data-mode="total" class="active">{{#str}}viz_mode_total, block_curriculummap{{/str}}</button>
+        <button data-mode="unique">{{#str}}viz_mode_unique, block_curriculummap{{/str}}</button>
+      </div>
+    </div>
+    <div class="cmviz-field">
+      <label>{{#str}}viz_celldisplay, block_curriculummap{{/str}}</label>
+      <div class="cmviz-segtoggle" data-role="cellDisplayToggle">
+        <button data-disp="number" class="active">{{#str}}viz_celldisplay_number, block_curriculummap{{/str}}</button>
+        <button data-disp="segments">{{#str}}viz_celldisplay_segments, block_curriculummap{{/str}}</button>
+      </div>
+    </div>
+    <div class="cmviz-spacer"></div>
+    <button class="cmviz-minibtn" data-role="resetBtn">{{#str}}viz_reset, block_curriculummap{{/str}}</button>
+  </div>
+
+  <div class="cmviz-filterbar">
+    <div class="cmviz-field">
+      <label>{{#str}}viz_addfilteraxis, block_curriculummap{{/str}}</label>
+      <div style="display:flex; gap:6px;">
+        <select data-role="addFilterAxis"></select>
+        <button class="cmviz-minibtn" data-role="addFilterBtn">{{#str}}viz_addfilterbtn, block_curriculummap{{/str}}</button>
+      </div>
+    </div>
+  </div>
+  <div data-role="filterBlocks"></div>
+
+  <p class="cmviz-statline" data-role="statLine"></p>
+
+  <div class="cmviz-main">
+    <div class="cmviz-tablewrap"><table class="cmviz-cross" data-role="crossTable"></table></div>
+    <aside class="cmviz-sidebar" data-role="sidebar"></aside>
+  </div>
+
+  <p class="cmviz-note">{{#str}}viz_note, block_curriculummap{{/str}}</p>
+</div>

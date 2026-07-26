@@ -1,0 +1,22 @@
+{{!
+    This file is part of Moodle - http://moodle.org/
+
+    @template block_curriculummap/compact
+
+    Compact block content: shown when the instance's displaymode is
+    'link' or 'modal'. The anchor always has a real href so it degrades
+    to a normal page navigation if JS is disabled or 'modal' mode's
+    initModalTrigger hasn't attached yet.
+
+    Context variables required for this template:
+    * viewurl - string, URL to the full view page
+    * ismodal - bool, true if this should open as a modal instead of navigating
+    * label - string, link/button label
+}}
+<div class="block-curriculummap-compact">
+    <a href="{{viewurl}}"
+       class="btn btn-outline-primary btn-sm"
+       {{#ismodal}}data-region="curriculummap-modal-trigger"{{/ismodal}}>
+        {{label}}
+    </a>
+</div>
