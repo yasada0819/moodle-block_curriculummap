@@ -25,7 +25,7 @@
 defined('MOODLE_INTERNAL') || die();
 
 $plugin->component = 'block_curriculummap';
-$plugin->version   = 2026081903;          // YYYYMMDDXX - bumped: axis items (dp/core/milestone, CSV or competency sourced) now sorted by (group, idnumber) before use, instead of relying on raw CSV/competency-query order. Fixes DP asc/desc sort being wrong and the Ⅰ/Ⅱ/Ⅲ major band fragmenting when source rows weren't already grouped.
+$plugin->version   = 2026082001;          // YYYYMMDDXX - bumped: added composite (2-level) row/col axes pairing two single-valued axes into one band+column axis, reusing the same groupSpans()/parentOf() band-drawing logic as DP major/minor - grade×category, category×grade, category×milestone, milestone×category. Also gave category/grade a colorOf() (previously only multi-valued axes had one), needed for the new composite axes' band colours.
 $plugin->requires  = 2024100700;          // Moodle 4.5 LTS baseline. Bump if targeting 5.x only.
-$plugin->release   = '0.6.3';
+$plugin->release   = '0.7.0';
 $plugin->maturity  = MATURITY_ALPHA;      // Core visualization now works end-to-end; still alpha pending broader testing.

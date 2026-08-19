@@ -108,7 +108,8 @@ define(['core/ajax', 'core/notification', 'core/pending', 'core/str'], function(
             label: strings.viz_categoryaxis,
             multi: false,
             allValues: categories,
-            getValues: function(s) { return s.category ? [s.category] : []; }
+            getValues: function(s) { return s.category ? [s.category] : []; },
+            colorOf: function(v) { return getGroupColor('category:' + v); }
         };
         AXIS_ORDER.push('category');
 
@@ -126,7 +127,8 @@ define(['core/ajax', 'core/notification', 'core/pending', 'core/str'], function(
             label: strings.viz_gradeaxis,
             multi: false,
             allValues: grades,
-            getValues: function(s) { return s.grade ? [s.grade] : []; }
+            getValues: function(s) { return s.grade ? [s.grade] : []; },
+            colorOf: function(v) { return getGroupColor('grade:' + v); }
         };
         AXIS_ORDER.push('grade');
 
@@ -218,6 +220,81 @@ define(['core/ajax', 'core/notification', 'core/pending', 'core/str'], function(
             };
             AXIS_ORDER.push(axis.id);
         });
+
+        var makeCompositeAxis = function(axisA, axisB, id, label) {
+            var seen = {};
+            var combos = [];
+            subjects.forEach(function(s) {
+                var av = axisA.getValues(s)[0];
+                var bv = axisB.getValues(s)[0];
+                if (!av || !bv) {
+                    return;
+                }
+                var key = av + '|' + bv;
+                if (!seen[key]) {
+                    seen[key] = true;
+                    combos.push({key: key, a: av, b: bv});
+                }
+            });
+            var aIndex = {};
+            axisA.allValues.forEach(function(v, i) { aIndex[v] = i; });
+            var bIndex = {};
+            axisB.allValues.forEach(function(v, i) { bIndex[v] = i; });
+            combos.sort(function(x, y) {
+                var byA = aIndex[x.a] - aIndex[y.a];
+                if (byA !== 0) {
+                    return byA;
+                }
+                return bIndex[x.b] - bIndex[y.b];
+            });
+            var comboByKey = {};
+            combos.forEach(function(c) { comboByKey[c.key] = c; });
+            return {
+                id: id,
+                label: label,
+                multi: false,
+                allValues: combos.map(function(c) { return c.key; }),
+                getValues: function(s) {
+                    var av = axisA.getValues(s)[0];
+                    var bv = axisB.getValues(s)[0];
+                    if (!av || !bv) {
+                        return [];
+                    }
+                    return [av + '|' + bv];
+                },
+                labelOf: function(v) {
+                    var c = comboByKey[v];
+                    if (!c) {
+                        return v;
+                    }
+                    return axisB.labelOf ? axisB.labelOf(c.b) : c.b;
+                },
+                parentOf: function(v) {
+                    var c = comboByKey[v];
+                    return c ? c.a : '';
+                },
+                parentLabel: axisA.id,
+                colorOf: function(v) {
+                    var c = comboByKey[v];
+                    return (c && axisA.colorOf) ? axisA.colorOf(c.a) : 'var(--cmviz-accent)';
+                }
+            };
+        };
+
+        if (AXES.grade && AXES.category) {
+            AXES.grade_category = makeCompositeAxis(AXES.grade, AXES.category, 'grade_category', strings.viz_gradecategoryaxis);
+            AXIS_ORDER.push('grade_category');
+            AXES.category_grade = makeCompositeAxis(AXES.category, AXES.grade, 'category_grade', strings.viz_categorygradeaxis);
+            AXIS_ORDER.push('category_grade');
+        }
+        if (AXES.category && AXES.milestone) {
+            AXES.category_milestone = makeCompositeAxis(
+                AXES.category, AXES.milestone, 'category_milestone', strings.viz_categorymilestoneaxis);
+            AXIS_ORDER.push('category_milestone');
+            AXES.milestone_category = makeCompositeAxis(
+                AXES.milestone, AXES.category, 'milestone_category', strings.viz_milestonecategoryaxis);
+            AXIS_ORDER.push('milestone_category');
+        }
 
         return {AXES: AXES, AXIS_ORDER: AXIS_ORDER};
     };
@@ -951,6 +1028,10 @@ define(['core/ajax', 'core/notification', 'core/pending', 'core/str'], function(
         var stringrequests = [
             {key: 'viz_categoryaxis', component: 'block_curriculummap'},
             {key: 'viz_gradeaxis', component: 'block_curriculummap'},
+            {key: 'viz_gradecategoryaxis', component: 'block_curriculummap'},
+            {key: 'viz_categorygradeaxis', component: 'block_curriculummap'},
+            {key: 'viz_categorymilestoneaxis', component: 'block_curriculummap'},
+            {key: 'viz_milestonecategoryaxis', component: 'block_curriculummap'},
             {key: 'viz_majorsuffix', component: 'block_curriculummap'},
             {key: 'viz_total', component: 'block_curriculummap'},
             {key: 'viz_selectall', component: 'block_curriculummap'},
