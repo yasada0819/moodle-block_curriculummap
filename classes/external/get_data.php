@@ -172,6 +172,7 @@ class get_data extends external_api {
                 'courseid' => $courseid,
                 'name'     => format_string($course->fullname),
                 'category' => self::extract_category($course->idnumber, $instanceid, $instanceconfig),
+                'grade'    => self::extract_grade($course->idnumber),
                 'links'    => [],
             ];
         }
@@ -181,6 +182,7 @@ class get_data extends external_api {
             'courseid' => null,
             'name'     => $name,
             'category' => self::extract_category($courseidnumber, $instanceid, $instanceconfig),
+            'grade'    => self::extract_grade($courseidnumber),
             'links'    => [],
         ];
     }
@@ -211,6 +213,48 @@ class get_data extends external_api {
             return null;
         }
         return substr($idnumber, $offset, $length);
+    }
+
+    /**
+     * Grade (school year) comes from course.idnumber, same data source as
+     * category but a different extraction shape: idnumber is split on "_"
+     * and the first token matching /^M\d+$/ is used, e.g.
+     * "2026_M_L74_M4_08" -> "M4". Chosen over a fixed offset/length (like
+     * extract_category()) because the preceding "L" segment's digit count
+     * varies (L2103-1, L4201, L74, L7302, ...), which would shift a fixed
+     * offset; searching by token prefix is robust to that drift as long as
+     * the naming convention (an underscore-delimited "M" + digits token)
+     * holds.
+     *
+     * Design note (chat): a single Moodle course's idnumber never encodes
+     * two grades at once. Where a syllabus-level subject genuinely spans
+     * two school years (e.g. 科目管理番号 L7302 taught across M4 and M5),
+     * that is represented as two separate Moodle courses with distinct
+     * idnumbers (..._M4 and ..._M5), each with its own single-valued grade
+     * - by design decision, these show up as two separate rows/subjects in
+     * the map rather than being merged. So this stays a single-value
+     * (multi: false) axis, no array return needed.
+     *
+     * Currently idnumber-only (no CSV alternative), unlike dp/core/
+     * milestone. If a CSV-sourced category/grade datasource is wanted
+     * later, this would become an axis-shaped lookup analogous to
+     * get_axis_data() with a {axis}_datasource of 'idnumber' vs 'csv',
+     * reusing block_curriculummap_link the same way dp/core/milestone do -
+     * not implemented yet, kept as plain extraction for now.
+     *
+     * @param string $idnumber
+     * @return string|null null if no "M" + digits token is found.
+     */
+    private static function extract_grade(string $idnumber): ?string {
+        if ($idnumber === '') {
+            return null;
+        }
+        foreach (explode('_', $idnumber) as $token) {
+            if (preg_match('/^M\d+$/', $token)) {
+                return $token;
+            }
+        }
+        return null;
     }
 
     /**
@@ -418,6 +462,7 @@ class get_data extends external_api {
                         VALUE_DEFAULT, null, NULL_ALLOWED),
                     'name'     => new external_value(PARAM_TEXT, 'Course full name, or CSV-provided/fallback name'),
                     'category' => new external_value(PARAM_RAW, 'Derived from idnumber substring', VALUE_DEFAULT, null, NULL_ALLOWED),
+                    'grade'    => new external_value(PARAM_RAW, 'Derived from idnumber "_M<digits>" token', VALUE_DEFAULT, null, NULL_ALLOWED),
                     'links'    => new external_multiple_structure(
                         new external_single_structure([
                             'axisid'    => new external_value(PARAM_ALPHA, 'Axis id: dp / core / milestone'),

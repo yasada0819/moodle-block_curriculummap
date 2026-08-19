@@ -112,6 +112,24 @@ define(['core/ajax', 'core/notification', 'core/pending', 'core/str'], function(
         };
         AXIS_ORDER.push('category');
 
+        // Grade (school year) - same single-valued pattern as category,
+        // read straight off subject.grade (see get_data.php::extract_grade()).
+        var grades = [];
+        subjects.forEach(function(s) {
+            if (s.grade && grades.indexOf(s.grade) === -1) {
+                grades.push(s.grade);
+            }
+        });
+        grades.sort();
+        AXES.grade = {
+            id: 'grade',
+            label: strings.viz_gradeaxis,
+            multi: false,
+            allValues: grades,
+            getValues: function(s) { return s.grade ? [s.grade] : []; }
+        };
+        AXIS_ORDER.push('grade');
+
         axesFromServer.forEach(function(axis) {
             var itemsByIdnumber = {};
             axis.items.forEach(function(item) { itemsByIdnumber[item.idnumber] = item; });
@@ -910,6 +928,7 @@ define(['core/ajax', 'core/notification', 'core/pending', 'core/str'], function(
 
         var stringrequests = [
             {key: 'viz_categoryaxis', component: 'block_curriculummap'},
+            {key: 'viz_gradeaxis', component: 'block_curriculummap'},
             {key: 'viz_majorsuffix', component: 'block_curriculummap'},
             {key: 'viz_total', component: 'block_curriculummap'},
             {key: 'viz_selectall', component: 'block_curriculummap'},

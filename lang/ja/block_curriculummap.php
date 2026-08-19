@@ -114,6 +114,7 @@ $string['viz_addfilteraxis'] = 'フィルタ軸を追加';
 $string['viz_addfilterbtn'] = '+ 追加';
 $string['viz_note'] = '集計モードは行/列の「合計」の数え方(同じ科目が複数値にまたがる場合に重複カウントするか否か)にのみ反映され、セル自体には影響しません。フィルタは複数軸を同時に追加でき、軸間はAND・同一軸内の値はORで絞り込みます。';
 $string['viz_categoryaxis'] = '科目カテゴリ';
+$string['viz_gradeaxis'] = '学年';
 $string['viz_majorsuffix'] = '(大項目)';
 $string['viz_total'] = '合計';
 $string['viz_selectall'] = '全選択';

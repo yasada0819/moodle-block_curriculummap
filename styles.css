@@ -75,9 +75,9 @@
 .block_curriculummap-viz .cmviz-pill.on { background: var(--cmviz-accent); color: #fff; border-color: var(--cmviz-accent); }
 .block_curriculummap-viz .cmviz-statline { font-size: 11.5px; color: var(--cmviz-ink-muted); margin: 0 0 10px; }
 
-.block_curriculummap-viz .cmviz-main { display:flex; gap: 14px; align-items: flex-start; }
+.block_curriculummap-viz .cmviz-main { display:flex; flex-direction: column; gap: 14px; }
 .block_curriculummap-viz .cmviz-tablewrap {
-  flex: 1; background: var(--cmviz-panel); border: 1px solid var(--cmviz-border); border-radius: 6px;
+  width: 100%; background: var(--cmviz-panel); border: 1px solid var(--cmviz-border); border-radius: 6px;
   overflow: auto; max-height: 600px;
 }
 .block_curriculummap-viz table.cmviz-cross { border-collapse: collapse; width: 100%; font-size: 12.5px; }
@@ -114,8 +114,8 @@
 }
 
 .block_curriculummap-viz aside.cmviz-sidebar {
-  width: 280px; flex-shrink: 0; background: var(--cmviz-panel); border: 1px solid var(--cmviz-border); border-radius: 6px;
-  padding: 12px 12px 14px; max-height: 600px; overflow: auto;
+  width: 100%; background: var(--cmviz-panel); border: 1px solid var(--cmviz-border); border-radius: 6px;
+  padding: 12px 12px 14px; max-height: 400px; overflow: auto;
 }
 .block_curriculummap-viz .cmviz-sidebar h4 { font-size: 13px; margin: 0 0 10px; }
 .block_curriculummap-viz .cmviz-sidebar .cmviz-empty { font-size: 12.5px; color: var(--cmviz-ink-muted); }
