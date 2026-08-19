@@ -131,11 +131,33 @@ define(['core/ajax', 'core/notification', 'core/pending', 'core/str'], function(
         AXIS_ORDER.push('grade');
 
         axesFromServer.forEach(function(axis) {
+            // Sort items by (group, idnumber) before building this axis.
+            // Two reasons: (a) groupSpans() below assumes same-group items
+            // are contiguous to draw one spanning band per group - without
+            // this, CSV rows listed out of order (as-uploaded order, not
+            // logical order) fragment the band; (b) allValues then starts
+            // in a sensible ascending order, since the asc/desc toggle only
+            // reverses whatever order is already here. Plain string
+            // comparison is enough: the fullwidth Unicode Roman numerals
+            // used for DP major labels are sequential in Unicode (U+2160
+            // upward), so comparing them as strings already sorts them
+            // correctly, and single-digit "-1".."-6" suffixes compare
+            // correctly too. (Would need a smarter comparator if item counts
+            // ever reach double digits.)
+            var items = axis.items.slice().sort(function(a, b) {
+                var ga = a.group || '';
+                var gb = b.group || '';
+                if (ga !== gb) {
+                    return ga < gb ? -1 : 1;
+                }
+                return a.idnumber < b.idnumber ? -1 : (a.idnumber > b.idnumber ? 1 : 0);
+            });
+
             var itemsByIdnumber = {};
-            axis.items.forEach(function(item) { itemsByIdnumber[item.idnumber] = item; });
+            items.forEach(function(item) { itemsByIdnumber[item.idnumber] = item; });
 
             var groups = [];
-            axis.items.forEach(function(item) {
+            items.forEach(function(item) {
                 if (item.group && groups.indexOf(item.group) === -1) {
                     groups.push(item.group);
                 }
@@ -177,7 +199,7 @@ define(['core/ajax', 'core/notification', 'core/pending', 'core/str'], function(
                 id: axis.id,
                 label: axis.label,
                 multi: true,
-                allValues: axis.items.map(function(item) { return item.idnumber; }),
+                allValues: items.map(function(item) { return item.idnumber; }),
                 labelOf: function(v) { return (itemsByIdnumber[v] && itemsByIdnumber[v].label) || v; },
                 getValues: (function(axisId) {
                     return function(s) {

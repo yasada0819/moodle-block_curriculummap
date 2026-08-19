@@ -25,7 +25,7 @@
 defined('MOODLE_INTERNAL') || die();
 
 $plugin->component = 'block_curriculummap';
-$plugin->version   = 2026081902;          // YYYYMMDDXX - bumped: added "grade" (school year) as a new single-valued axis, extracted from course.idnumber's underscore-delimited "M<digits>" token (robust to the varying digit-count of the preceding "L" segment). Same subject.grade shape/pattern as category; a subject spanning two grades intentionally stays two separate Moodle courses/rows, not a multi-valued axis.
+$plugin->version   = 2026081903;          // YYYYMMDDXX - bumped: axis items (dp/core/milestone, CSV or competency sourced) now sorted by (group, idnumber) before use, instead of relying on raw CSV/competency-query order. Fixes DP asc/desc sort being wrong and the Ⅰ/Ⅱ/Ⅲ major band fragmenting when source rows weren't already grouped.
 $plugin->requires  = 2024100700;          // Moodle 4.5 LTS baseline. Bump if targeting 5.x only.
-$plugin->release   = '0.6.2';
+$plugin->release   = '0.6.3';
 $plugin->maturity  = MATURITY_ALPHA;      // Core visualization now works end-to-end; still alpha pending broader testing.
