@@ -80,7 +80,6 @@ course_idnumber, item_idnumber, item_label, parent_label, course_name
 
 ## 既知の制限・今後の課題
 
-- **`amd/build/`は現時点で手動同期**: この開発環境では`npx grunt amd`が使えず、`amd/src/curriculummap.js`(素のAMD `define()`形式で記述、ES importは未使用)と`amd/build/curriculummap.js`・`amd/build/curriculummap.min.js`を**内容が同一になるよう手動でコピー**している。本来Moodleの規約では`amd/build/`は生成物なのでリポジトリに含めない/`.gitignore`対象とすべきだが、grunt環境を用意するまでの暫定措置としてコミットしている。grunt環境を整えたら、この3ファイルをビルド成果物に置き換え、`amd/build/`を`.gitignore`する運用に切り替えることを推奨
 - **コース-コンピテンシーの紐づけ取得(`get_course_links()`)がサイト内の全コースを走査する実装**: 設計上の想定スケール(1大学あたり100〜300科目程度)では問題ないが、より大規模なサイトでは要見直し(バッチSQL化・キャッシュ等)
 - **フレームワーク改訂時のバージョニング運用は未実装**: Moodleのコンピテンシーフレームワークの`archived`状態を使うか、常に最新版のみ見せるかは今後の検討事項
 - **マイルストーンはDP/コアカリと並列・独立した軸**として扱っている(DP項目ごとに異なるマイルストーン値を持つケースは現行ルール上発生しないため)。将来そのルールが変わった場合は、マイルストーンをDP小項目配下の階層として持たせる再設計が必要になる
